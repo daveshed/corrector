@@ -73,6 +73,7 @@ Entry::~Entry()
     // 1. link the parent to each child in target's children...
     for (auto &child : m_children)
     {
+        // calling this on the root would blow up!
         m_parent->LinkTo(child.second);
     }
     // 2. unlink target node from its parent...
@@ -93,6 +94,22 @@ void Entry::LinkTo(Entry* child)
     child->m_parent = this;
 }
 
+void Entry::LinkTo(string word)
+{
+    const int d = GetEditDistanceTo(word);
+    // if we find an edge the same length,
+    if (m_children.count(d))
+    {
+        // recurse to the next node...
+        m_children[d]->LinkTo(word);
+    }
+    else // otherwise add a new node at this edge...
+    {
+        Entry* new_node = new Entry(word);
+        LinkTo(new_node);
+    }
+}
+
 int Entry::GetEditDistanceTo(string dst) const
 {
     return GetEditDistance(dst, m_word);
@@ -101,6 +118,32 @@ int Entry::GetEditDistanceTo(string dst) const
 bool Entry::IsLeaf(void) const
 {
     return m_children.empty();
+}
+
+Entry const *const Entry::Search(string &word) const
+{
+    return Search([word](auto entry){return entry->GetWord() == word;});
+}
+
+template <typename MatchingFnType>
+Entry const *const Entry::Search(MatchingFnType found_entry) const
+{
+    // return early if the target matches our search...
+    if (found_entry(this))
+    {
+        return this;
+    }
+    // otherwise search the children...
+    for (auto &item : m_children)
+    {
+        Entry const *const found = item.second->Search(found_entry);
+        if (found)
+        {
+            return found;
+        }
+    }
+    // return null if we don't find it...
+    return nullptr;
 }
 
 Dictionary::Dictionary(const string& input)
@@ -122,9 +165,8 @@ Dictionary::~Dictionary(void)
     // keep deleting leaf nodes until only the root is left...
     while (!m_root->IsLeaf())
     {
-        Entry const *const entry = Search_(
-            [](auto entry){return entry->IsLeaf();},
-            m_root);
+        Entry const *const entry = m_root->Search(
+            [](auto entry){return entry->IsLeaf();});
         assert(entry);
         delete entry;
     }
@@ -138,7 +180,7 @@ bool Dictionary::Exists(string word)
     {
         return false;
     }
-    return Search_(word, m_root) != nullptr;
+    return m_root->Search(word) != nullptr;
 }
 
 void Dictionary::Add(string word)
@@ -149,11 +191,11 @@ void Dictionary::Add(string word)
     }
     if (m_root)
     {
-        AddToNode_(word, m_root);
+        m_root->LinkTo(word);
     }
     else
     {
-        m_root = new Entry(word);
+        m_root = new RootEntry(word);
     }
 }
 
@@ -163,7 +205,7 @@ void Dictionary::Remove(string word)
     {
         return;
     }
-    Entry const *const to_remove = Search_(word, m_root);
+    Entry const *const to_remove = m_root->Search(word);
     if (to_remove == m_root)
     {
         m_root = nullptr;
@@ -171,61 +213,11 @@ void Dictionary::Remove(string word)
     delete to_remove;
 }
 
-void Dictionary::AddToNode_(string word, Entry *const target)
-{
-    assert(target);
-    const int d = target->GetEditDistanceTo(word);
-    // if we find an edge the same length,
-    if (target->m_children.count(d))
-    {
-        // recurse to the next node...
-        AddToNode_(word, target->m_children[d]);
-    }
-    else // otherwise add a new node at this edge...
-    {
-        Entry* new_node = new Entry(word);
-        target->LinkTo(new_node);
-    }
-}
-
-Entry const *const Dictionary::Search_(string &word, Entry const *const root)
-{
-    return Search_([word](auto entry){return entry->m_word == word;}, root);
-}
-
-template <typename MatchingFnType>
-Entry const *const Dictionary::Search_(
-    MatchingFnType found_entry, Entry const *const root)
-{
-    // depth first search...
-    if (!root)
-    {
-        return nullptr;
-    }
-    // return early if the target matches our search...
-    if (found_entry(root))
-    {
-        return root;
-    }
-    // otherwise search the children...
-    // might need to keep track of visited nodes here?
-    for (auto &item : root->m_children)
-    {
-        Entry const *const found = Search_(found_entry, item.second);
-        if (found)
-        {
-            return found;
-        }
-    }
-    // return null if we don't find it...
-    return nullptr;
-}
-
-vector<string> SpellChecker::Check(string word)
+vector<string> Dictionary::Check(string word)
 {
     vector<string> result;
     cout << "Checking ..." << word << endl;
-    Search_(word, result, m_dict->m_root);
+    Search_(word, result, m_root);
     cout << "Results ..." << endl;
     sort(result.begin(), result.end());
     for (auto &foo : result)
@@ -237,10 +229,10 @@ vector<string> SpellChecker::Check(string word)
 
 // recurse into the tree and keep appending to the result each time we find a
 // suitable word...
-void SpellChecker::Search_(
+void Dictionary::Search_(
     const string& word, vector<string>& result, Entry const *const node)
 {
-    cout << "Searching for " << word << " @ " << node->m_word << endl;
+    cout << "Searching for " << word << " @ " << node->GetWord() << endl;
     if (!node)
     {
         return;
@@ -252,7 +244,7 @@ void SpellChecker::Search_(
     if (d <= m_tolerance)
     {
         cout << "  Match!" << endl;
-        result.push_back(node->m_word);
+        result.push_back(node->GetWord());
     }
     // 2. iterate over nodes within the tolerance limit ie d +/- tolerance...
     cout << "Searching children..." << endl;
@@ -263,7 +255,7 @@ void SpellChecker::Search_(
             // edit distances less than zero don't make sense here.
             continue;
         }
-        if (!node->m_children.count(idx))
+        if (!node->GetChildren().count(idx))
         {
             continue;
         }
@@ -271,7 +263,8 @@ void SpellChecker::Search_(
         Search_(
             word,
             result,
-            static_cast<Entry const *const>(node->m_children.find(idx)->second)
+            static_cast<Entry const *const>(
+                node->GetChildren().find(idx)->second)
         );
     }
 }

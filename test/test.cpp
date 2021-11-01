@@ -9,7 +9,6 @@
 #include "CppUTest/TestHarness.h"
 
 Dictionary* dictionary;
-SpellChecker* spellchecker;
 std::string dict_entries("help hell hello loop helps shell helper troop");
 
 TEST_GROUP(SpellCheckerTestGroup)
@@ -17,12 +16,10 @@ TEST_GROUP(SpellCheckerTestGroup)
     void setup()
     {
         dictionary = new Dictionary(dict_entries);
-        spellchecker = new SpellChecker(dictionary);
     }
 
     void teardown()
     {
-        delete spellchecker;
         delete dictionary;
     }
 };
@@ -70,11 +67,11 @@ TEST(SpellCheckerTestGroup, TestUnkownWordCheckerReturnsSimilar)
 {
     CHECK(
         (std::vector<std::string>{"loop", "troop"})
-        == spellchecker->Check("oop"));
+        == dictionary->Check("oop"));
     CHECK(
         (std::vector<std::string>{"loop",})
-        == spellchecker->Check("lop"));
+        == dictionary->Check("lop"));
     CHECK(
         (std::vector<std::string>{"hell", "hello", "help", "shell"})
-        == spellchecker->Check("sell"));
+        == dictionary->Check("sell"));
 }
