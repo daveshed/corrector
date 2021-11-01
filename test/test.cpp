@@ -10,7 +10,7 @@
 
 Dictionary* dictionary;
 SpellChecker* spellchecker;
-string dict_entries("help hell hello loop helps shell helper troop");
+std::string dict_entries("help hell hello loop helps shell helper troop");
 
 TEST_GROUP(SpellCheckerTestGroup)
 {
@@ -44,8 +44,8 @@ TEST(SpellCheckerTestGroup, TestWordExistenceInDict)
  */
 TEST(SpellCheckerTestGroup, TestWordsAddedToDictOnInit)
 {
-    string entry;
-    stringstream ss(dict_entries);
+    std::string entry;
+    std::stringstream ss(dict_entries);
     while (ss >> entry)
     {
         CHECK_TEXT(
@@ -69,12 +69,12 @@ TEST(SpellCheckerTestGroup, TestGetEditDistanceBetweenWords)
 TEST(SpellCheckerTestGroup, TestUnkownWordCheckerReturnsSimilar)
 {
     CHECK(
-        (vector<string>{"loop", "troop"})
+        (std::vector<std::string>{"loop", "troop"})
         == spellchecker->Check("oop"));
     CHECK(
-        (vector<string>{"loop",})
+        (std::vector<std::string>{"loop",})
         == spellchecker->Check("lop"));
     CHECK(
-        (vector<string>{"hell", "hello", "help", "shell"})
+        (std::vector<std::string>{"hell", "hello", "help", "shell"})
         == spellchecker->Check("sell"));
 }
