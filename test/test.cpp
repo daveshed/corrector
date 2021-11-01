@@ -39,8 +39,8 @@ TEST(SpellCheckerTestGroup, TestWordExistenceInDict)
 }
 
 /*
- * Words should be added to the dictionary via the string stream injected into
- * the initialiser.
+ * Ensure that all words from the string stream have been added to the dict
+ * successfully using the exists api.
  */
 TEST(SpellCheckerTestGroup, TestWordsAddedToDictOnInit)
 {
@@ -58,7 +58,8 @@ TEST(SpellCheckerTestGroup, TestGetEditDistanceBetweenWords)
 {
     CHECK_EQUAL(2, GetEditDistance("hello", "help"));
     CHECK_EQUAL(2, GetEditDistance("shell", "hello"));
-    CHECK_EQUAL(4, GetEditDistance("troop", "hello"));
+    CHECK_EQUAL(5, GetEditDistance("troop", "hello"));
+    CHECK_EQUAL(3, GetEditDistance("kitten", "sitting"));
 }
 
 /*
@@ -67,7 +68,13 @@ TEST(SpellCheckerTestGroup, TestGetEditDistanceBetweenWords)
  */
 TEST(SpellCheckerTestGroup, TestUnkownWordCheckerReturnsSimilar)
 {
-    CHECK((vector<string>{"loop", "troop"}) == spellchecker->Check("oop"));
-    CHECK((vector<string>{"loop",}) == spellchecker->Check("lop"));
-    CHECK((vector<string>{"hell", "help", "hello"}) == spellchecker->Check("sell"));
+    CHECK(
+        (vector<string>{"loop", "troop"})
+        == spellchecker->Check("oop"));
+    CHECK(
+        (vector<string>{"loop",})
+        == spellchecker->Check("lop"));
+    CHECK(
+        (vector<string>{"hell", "hello", "help", "shell"})
+        == spellchecker->Check("sell"));
 }

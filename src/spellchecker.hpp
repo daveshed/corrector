@@ -2,6 +2,9 @@
 #include <iostream>
 #include <unordered_map>
 #include <vector>
+
+// This is bad practice and should be removed - all those who import will have
+// this using declaration.
 using namespace std;
 
 int GetEditDistance(string dst, string src);
@@ -55,5 +58,5 @@ private:
     static void Search_(
         const string& word,
         vector<string>& result,
-        Entry *const node);
+        Entry const *const node);
 };

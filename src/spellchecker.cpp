@@ -8,11 +8,12 @@ using namespace std;
 
 int GetEditDistance(string dst, string src)
 {
+    cout << "Calculating " << dst << " -> " << src << endl;
     // https://en.wikipedia.org/wiki/Levenshtein_distance
     // for all i and j, d[i,j] will hold the Levenshtein distance between
-    // the first i characters of s and the first j characters of t
-    const size_t m = src.size();
-    const size_t n = dst.size();
+    // the first i characters of src and the first j characters of dst
+    const size_t m = src.size() + 1;
+    const size_t n = dst.size() + 1;
     int distance[m][n];
 
     // set each element in d to zero
@@ -35,9 +36,8 @@ int GetEditDistance(string dst, string src)
     {
         for (int i = 1; i < m; i++)
         {
-            int substitution_cost = (src[i] == dst[j]) ? 0 : 1;
+            int substitution_cost = (src[i - 1] == dst[j - 1]) ? 0 : 1;
             vector<int> costs{
-
                 distance[i - 1][j] + 1,                        // deletion
                 distance[i][j - 1] + 1,                        // insertion
                 distance[i - 1][j - 1] + substitution_cost,    // substitution
@@ -46,6 +46,25 @@ int GetEditDistance(string dst, string src)
         }
     }
 
+    #if 0
+    // print out the array...
+    cout << "   ";
+    for (auto &c : dst)
+    {
+        cout << " " << c;
+    }
+    cout << endl;
+    for (int i = 0; i < m; i++)  // src
+    {
+        char foo = (i == 0) ? ' ' : src[i - 1];
+        cout << foo << " ";
+        for (int j = 0; j < n; j++)  // src
+        {
+            cout << distance[i][j] << " ";
+        }
+        cout << endl;
+    }
+    #endif
     return distance[m - 1][n - 1];
 }
 
@@ -205,27 +224,38 @@ Entry const *const Dictionary::Search_(
 vector<string> SpellChecker::Check(string word)
 {
     vector<string> result;
+    cout << "Checking ..." << word << endl;
     Search_(word, result, m_dict->m_root);
+    cout << "Results ..." << endl;
+    sort(result.begin(), result.end());
+    for (auto &foo : result)
+    {
+        cout << foo << endl;
+    }
     return result;
 }
 
 // recurse into the tree and keep appending to the result each time we find a
 // suitable word...
 void SpellChecker::Search_(
-    const string& word, vector<string>& result, Entry *const node)
+    const string& word, vector<string>& result, Entry const *const node)
 {
+    cout << "Searching for " << word << " @ " << node->m_word << endl;
     if (!node)
     {
         return;
     }
     // 1a. find distance to the node...
-    int d = node->GetEditDistanceTo(word);
+    const int d = node->GetEditDistanceTo(word);
+    cout << "d = " << d << endl;
     // 1b. only add it to the result if it's within tolerance...
-    if (d < m_tolerance)
+    if (d <= m_tolerance)
     {
+        cout << "  Match!" << endl;
         result.push_back(node->m_word);
     }
     // 2. iterate over nodes within the tolerance limit ie d +/- tolerance...
+    cout << "Searching children..." << endl;
     for (int idx = (d - m_tolerance); idx < (d + m_tolerance); idx++)
     {
         if (idx < 1)
@@ -233,6 +263,15 @@ void SpellChecker::Search_(
             // edit distances less than zero don't make sense here.
             continue;
         }
-        Search_(word, result, node->m_children[idx]);
+        if (!node->m_children.count(idx))
+        {
+            continue;
+        }
+        cout << "  d = " << idx << endl;
+        Search_(
+            word,
+            result,
+            static_cast<Entry const *const>(node->m_children.find(idx)->second)
+        );
     }
 }
