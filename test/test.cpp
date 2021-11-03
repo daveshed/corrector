@@ -51,6 +51,13 @@ TEST(SpellCheckerTestGroup, TestWordsAddedToDictOnInit)
     }
 }
 
+TEST(SpellCheckerTestGroup, TestRemoveRootSearchSuccessful)
+{
+    dictionary->Remove("help");
+    dictionary->Exists("troop");
+    dictionary->Exists("helper");
+}
+
 TEST(SpellCheckerTestGroup, TestGetEditDistanceBetweenWords)
 {
     CHECK_EQUAL(2, GetEditDistance("hello", "help"));

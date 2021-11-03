@@ -8,7 +8,6 @@ using namespace std;
 
 int GetEditDistance(string dst, string src)
 {
-    cout << "Calculating " << dst << " -> " << src << endl;
     // https://en.wikipedia.org/wiki/Levenshtein_distance
     // for all i and j, d[i,j] will hold the Levenshtein distance between
     // the first i characters of src and the first j characters of dst
@@ -70,63 +69,97 @@ int GetEditDistance(string dst, string src)
 
 Entry::~Entry()
 {
-    // 1. link the parent to each child in target's children...
+    cout << "Entry deconstructor: " << GetWord() << endl;
+    // Link the parent to each child in target's children...
     for (auto &child : m_children)
     {
         // calling this on the root would blow up!
         m_parent->LinkTo(child.second);
     }
-    // 2. unlink target node from its parent...
-    if (m_parent)  // special case for the root node.
-    {
-        m_parent->Unlink(this);
-    }
+    m_parent->Unlink(this);
 }
 
-void Entry::Unlink(Entry const *const child)
+RootEntry::~RootEntry()
+{
+    cout << "Root deconstructor: " << GetWord() << endl;
+    // (A) Root is the only node
+    if (IsLeaf())
+    {
+        // nothing to do - you can just delete me and update the dict
+        cout << "  Leaf" << endl;
+        m_dict->m_root = nullptr;
+        return;
+    }
+    // (B) Root has children
+    //  1. Pick the first child as the new root node...
+    // FIXME: Is the first one really the best one? would the smallest edit
+    //        distance actually be better?
+    EntryBase* to_promote = m_children.begin()->second;
+    RootEntry* new_root = new RootEntry(
+        to_promote->GetWord(),
+        m_dict);
+    cout << "  New root is " << new_root->GetWord() << endl;
+    //  2. Link the new root to the other children...
+    for (auto it = ++m_children.begin(); it != m_children.end(); ++it)
+    {
+        cout << "  Linking to " << it->second->GetWord() << endl;
+        // This is overwriting keys in the mapping!!
+        // Should we rebuild the dictionary?
+        new_root->LinkTo(it->second);
+    }
+    //  3. update the dictionary to hold the new root...
+    m_dict->m_root = new_root;
+    //  4. Get rid of the duplicated node...
+    delete to_promote;
+}
+
+void EntryBase::Unlink(EntryBase const *const child)
 {
     m_children.erase(GetEditDistanceTo(child->m_word));
 }
 
-void Entry::LinkTo(Entry* child)
+// Link to a node that already exists
+void EntryBase::LinkTo(EntryBase* target)
 {
-    m_children[GetEditDistanceTo(child->m_word)] = child;
-    child->m_parent = this;
-}
-
-void Entry::LinkTo(string word)
-{
-    const int d = GetEditDistanceTo(word);
-    // if we find an edge the same length,
+    assert(target);
+    const int d = GetEditDistanceTo(target->m_word);
+    // do not overwrite the keys - recurse if needed.
     if (m_children.count(d))
     {
-        // recurse to the next node...
-        m_children[d]->LinkTo(word);
+        // recurse...
+        m_children[d]->LinkTo(target);
     }
-    else // otherwise add a new node at this edge...
+    else
     {
-        Entry* new_node = new Entry(word);
-        LinkTo(new_node);
+        m_children[d] = target;
+        target->m_parent = this;
     }
 }
 
-int Entry::GetEditDistanceTo(string dst) const
+// Create a node for the new word and link it
+void EntryBase::LinkTo(string word)
+{
+    Entry* new_node = new Entry(word);
+    LinkTo(new_node);
+}
+
+int EntryBase::GetEditDistanceTo(string dst) const
 {
     return GetEditDistance(dst, m_word);
 }
 
-bool Entry::IsLeaf(void) const
+bool EntryBase::IsLeaf(void) const
 {
     return m_children.empty();
 }
 
-Entry const *const Entry::Search(string &word) const
+EntryBase const *const EntryBase::Search(string &word) const
 {
     return Search([word](auto entry){return entry->GetWord() == word;});
 }
 
 template <typename MatchingFnType>
-Entry const *const Entry::Search(MatchingFnType found_entry) const
+EntryBase const *const EntryBase::Search(MatchingFnType found_entry) const
 {
     // return early if the target matches our search...
     if (found_entry(this))
@@ -136,7 +169,7 @@ Entry const *const Entry::Search(MatchingFnType found_entry) const
     // otherwise search the children...
     for (auto &item : m_children)
     {
-        Entry const *const found = item.second->Search(found_entry);
+        EntryBase const *const found = item.second->Search(found_entry);
         if (found)
         {
             return found;
@@ -158,23 +191,19 @@ Dictionary::Dictionary(const string& input)
 
 Dictionary::~Dictionary(void)
 {
-    if (!m_root)
+    // keep deleting leaf nodes until there are no more...
+    cout << "Dictionary is deleting entries..." << endl;
+    while (!Empty())
     {
-        return;
-    }
-    // keep deleting leaf nodes until only the root is left...
-    while (!m_root->IsLeaf())
-    {
-        Entry const *const entry = m_root->Search(
+        EntryBase const *const entry = m_root->Search(
             [](auto entry){return entry->IsLeaf();});
+        cout << "Deleting: " << entry->GetWord() << endl;
         assert(entry);
         delete entry;
     }
-    // then delete the root...
-    delete m_root;
 }
 
-bool Dictionary::Exists(string word)
+bool Dictionary::Exists(string word) const
 {
     if (!m_root)
     {
@@ -183,34 +212,38 @@ bool Dictionary::Exists(string word)
     return m_root->Search(word) != nullptr;
 }
 
+bool Dictionary::Empty(void) const
+{
+    return m_root == nullptr;
+}
+
 void Dictionary::Add(string word)
 {
     if (Exists(word))
     {
         return;
     }
-    if (m_root)
+    if (Empty())
     {
-        m_root->LinkTo(word);
+        m_root = new RootEntry(word, this);
     }
     else
     {
-        m_root = new RootEntry(word);
+        m_root->LinkTo(word);
     }
 }
 
 void Dictionary::Remove(string word)
 {
+    cout << "Before removal..." << endl;
+    Show(m_root);
     if (!Exists(word))
     {
         return;
     }
-    Entry const *const to_remove = m_root->Search(word);
-    if (to_remove == m_root)
-    {
-        m_root = nullptr;
-    }
-    delete to_remove;
+    delete m_root->Search(word);
+    cout << "After removal..." << endl;
+    Show(m_root);
 }
 
 vector<string> Dictionary::Check(string word)
@@ -230,7 +263,7 @@ vector<string> Dictionary::Check(string word)
 // recurse into the tree and keep appending to the result each time we find a
 // suitable word...
 void Dictionary::Search_(
-    const string& word, vector<string>& result, Entry const *const node)
+    const string& word, vector<string>& result, EntryBase const *const node)
 {
     cout << "Searching for " << word << " @ " << node->GetWord() << endl;
     if (!node)
@@ -266,5 +299,29 @@ void Dictionary::Search_(
             static_cast<Entry const *const>(
                 node->GetChildren().find(idx)->second)
         );
+    }
+}
+
+// breadth first recursive search that displays the contents to stdout.
+void Dictionary::Show(EntryBase const* const entry) const
+{
+    int depth = 0;
+    Show_(m_root, depth);
+}
+
+// need to remember the depth so we can pad the correct number of spaces.
+// pass a reference to an int?
+void Dictionary::Show_(EntryBase const* const entry, int& depth) const
+{
+    std::string padding(depth * 2, ' ');
+    cout << padding << entry->GetWord() << endl;;
+    if (entry->IsLeaf())
+    {
+        return;
+    }
+    depth += 1;
+    for (auto &item : entry->GetChildren())
+    {
+        Show_(item.second, depth);
     }
 }
