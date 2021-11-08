@@ -6,6 +6,13 @@
 #include "spellchecker.hpp"
 using namespace std;
 
+// FIXME - move to private header
+#ifdef DEBUG
+    #define DEBUG_LOG(x)  (cout << x << endl)
+#else
+    #define DEBUG_LOG(x)
+#endif
+
 int GetEditDistance(string dst, string src)
 {
     // https://en.wikipedia.org/wiki/Levenshtein_distance
@@ -69,7 +76,7 @@ int GetEditDistance(string dst, string src)
 
 Entry::~Entry()
 {
-    cout << "Entry deconstructor: " << GetWord() << endl;
+    DEBUG_LOG("Entry deconstructor: " + GetWord());
     // Link the parent to each child in target's children...
     for (auto &child : m_children)
     {
@@ -81,12 +88,12 @@ Entry::~Entry()
 
 RootEntry::~RootEntry()
 {
-    cout << "Root deconstructor: " << GetWord() << endl;
+    DEBUG_LOG("Root deconstructor: " << GetWord());
     // (A) Root is the only node
     if (IsLeaf())
     {
         // nothing to do - you can just delete me and update the dict
-        cout << "  Leaf" << endl;
+        DEBUG_LOG("  Leaf");
         m_dict->m_root = nullptr;
         return;
     }
@@ -98,11 +105,11 @@ RootEntry::~RootEntry()
     RootEntry* new_root = new RootEntry(
         to_promote->GetWord(),
         m_dict);
-    cout << "  New root is " << new_root->GetWord() << endl;
+    DEBUG_LOG("  New root is " + new_root->GetWord());
     //  2. Link the new root to the other children...
     for (auto it = ++m_children.begin(); it != m_children.end(); ++it)
     {
-        cout << "  Linking to " << it->second->GetWord() << endl;
+        DEBUG_LOG("  Linking to " << it->second->GetWord());
         // This is overwriting keys in the mapping!!
         // Should we rebuild the dictionary?
         new_root->LinkTo(it->second);
@@ -192,12 +199,12 @@ Dictionary::Dictionary(const string& input)
 Dictionary::~Dictionary(void)
 {
     // keep deleting leaf nodes until there are no more...
-    cout << "Dictionary is deleting entries..." << endl;
+    DEBUG_LOG("Dictionary is deleting entries...");
     while (!Empty())
     {
         EntryBase const *const entry = m_root->Search(
             [](auto entry){return entry->IsLeaf();});
-        cout << "Deleting: " << entry->GetWord() << endl;
+        DEBUG_LOG("Deleting: " << entry->GetWord());
         assert(entry);
         delete entry;
     }
@@ -235,23 +242,22 @@ void Dictionary::Add(string word)
 
 void Dictionary::Remove(string word)
 {
-    cout << "Before removal..." << endl;
+    DEBUG_LOG("Before removal...");
     Show(m_root);
     if (!Exists(word))
     {
         return;
     }
     delete m_root->Search(word);
-    cout << "After removal..." << endl;
+    DEBUG_LOG("After removal...");
     Show(m_root);
 }
 
 vector<string> Dictionary::Check(string word)
 {
     vector<string> result;
-    cout << "Checking ..." << word << endl;
+    DEBUG_LOG("Checking ..." + word);
     Search_(word, result, m_root);
-    cout << "Results ..." << endl;
     if (std::find(result.begin(), result.end(), word) != result.end())
     {
         // The word exists in the dictionary. It's correct so return nothing.
@@ -259,9 +265,10 @@ vector<string> Dictionary::Check(string word)
         return result;
     }
     sort(result.begin(), result.end());
-    for (auto &foo : result)
+    DEBUG_LOG("Results ...");
+    for (auto &candidate : result)
     {
-        cout << foo << endl;
+        DEBUG_LOG(candidate);
     }
     return result;
 }
@@ -271,22 +278,19 @@ vector<string> Dictionary::Check(string word)
 void Dictionary::Search_(
     const string& word, vector<string>& result, EntryBase const *const node)
 {
-    cout << "Searching for " << word << " @ " << node->GetWord() << endl;
+    DEBUG_LOG("Searching for " + word + " @ " + node->GetWord());
     if (!node)
     {
         return;
     }
     // 1a. find distance to the node...
     const int d = node->GetEditDistanceTo(word);
-    cout << "d = " << d << endl;
     // 1b. only add it to the result if it's within tolerance...
     if (d <= m_tolerance)
     {
-        cout << "  Match!" << endl;
         result.push_back(node->GetWord());
     }
     // 2. iterate over nodes within the tolerance limit ie d +/- tolerance...
-    cout << "Searching children..." << endl;
     for (int idx = (d - m_tolerance); idx < (d + m_tolerance); idx++)
     {
         if (idx < 1)
@@ -298,7 +302,6 @@ void Dictionary::Search_(
         {
             continue;
         }
-        cout << "  d = " << idx << endl;
         Search_(
             word,
             result,
@@ -320,7 +323,7 @@ void Dictionary::Show(EntryBase const* const entry) const
 void Dictionary::Show_(EntryBase const* const entry, int& depth) const
 {
     std::string padding(depth * 2, ' ');
-    cout << padding << entry->GetWord() << endl;;
+    DEBUG_LOG(padding << entry->GetWord());
     if (entry->IsLeaf())
     {
         return;
