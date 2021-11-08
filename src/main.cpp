@@ -7,10 +7,15 @@ using namespace std;
 
 int main(void)
 {
-    string s = "";
-    while (cin >> s)
+    Dictionary dict("help hell hello loop helps shell helper troop");
+    string tmp;
+    while (cin >> tmp)
     {
-        cout << "I got... '" << s << "'" << endl;
+        cout << endl;
+        for (auto corrected : dict.Check(tmp))
+        {
+            cout << corrected << " ";
+        }
     }
     return 0;
 }

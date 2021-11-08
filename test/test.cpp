@@ -82,3 +82,8 @@ TEST(SpellCheckerTestGroup, TestUnkownWordCheckerReturnsSimilar)
         (std::vector<std::string>{"hell", "hello", "help", "shell"})
         == dictionary->Check("sell"));
 }
+
+TEST(SpellCheckerTestGroup, TestKnownWordCheckerReturnsEmpty)
+{
+    CHECK(std::vector<std::string>() == dictionary->Check("hello"));
+}

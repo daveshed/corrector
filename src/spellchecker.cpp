@@ -252,6 +252,12 @@ vector<string> Dictionary::Check(string word)
     cout << "Checking ..." << word << endl;
     Search_(word, result, m_root);
     cout << "Results ..." << endl;
+    if (std::find(result.begin(), result.end(), word) != result.end())
+    {
+        // The word exists in the dictionary. It's correct so return nothing.
+        result.clear();
+        return result;
+    }
     sort(result.begin(), result.end());
     for (auto &foo : result)
     {
