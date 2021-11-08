@@ -7,15 +7,16 @@ using namespace std;
 
 int main(void)
 {
-    Dictionary dict("help hell hello loop helps shell helper troop");
+    ifstream infile("/home/dmohamad/dev/playground/spellchecker/words.txt");
+    Dictionary dict(infile);
     string tmp;
     while (cin >> tmp)
     {
-        cout << endl;
         for (auto corrected : dict.Check(tmp))
         {
             cout << corrected << " ";
         }
+        cout << endl;
     }
     return 0;
 }

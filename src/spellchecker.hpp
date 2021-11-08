@@ -1,5 +1,4 @@
 #include <fstream>
-#include <iostream>
 #include <unordered_map>
 #include <vector>
 
@@ -51,6 +50,7 @@ class Dictionary {
 friend RootEntry;
 public:
     Dictionary(const std::string& input);
+    Dictionary(std::ifstream& input);
     ~Dictionary();
     bool Exists(std::string word) const;
     bool Empty(void) const;

@@ -1,12 +1,15 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <fstream>
+#include <iostream>
 #include <sstream>
 #include <vector>
 #include "spellchecker.hpp"
 using namespace std;
 
 // FIXME - move to private header
+#define DEBUG
 #ifdef DEBUG
     #define DEBUG_LOG(x)  (cout << x << endl)
 #else
@@ -194,6 +197,16 @@ Dictionary::Dictionary(const string& input)
     {
         Add(entry);
     }
+}
+
+Dictionary::Dictionary(ifstream& input)
+{
+    string entry;
+    while (input >> entry)
+    {
+        Add(entry);
+    }
+    DEBUG_LOG("Initialised");
 }
 
 Dictionary::~Dictionary(void)
