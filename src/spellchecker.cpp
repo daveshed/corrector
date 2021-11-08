@@ -113,8 +113,6 @@ RootEntry::~RootEntry()
     for (auto it = ++m_children.begin(); it != m_children.end(); ++it)
     {
         DEBUG_LOG("  Linking to " << it->second->GetWord());
-        // This is overwriting keys in the mapping!!
-        // Should we rebuild the dictionary?
         new_root->LinkTo(it->second);
     }
     //  3. update the dictionary to hold the new root...
